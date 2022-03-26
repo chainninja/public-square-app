@@ -5,9 +5,35 @@ import { arweave, getTopicString } from '../lib/api';
 export const NewPost = (props) => {
   const [postValue, setPostValue] = React.useState("");
   const [isPosting, setIsPosting] = React.useState(false);
+  const [topicValue, setTopicValue] = React.useState("");
 
   async function onPostButtonClicked() {
+    setIsPosting(true);
+    let tx = await arweave.createTransaction({ data:postValue })
+    tx.addTag('App-Name', 'PublicSquare')
+    tx.addTag('Content-Type', 'text/plain')
+    tx.addTag('Version', '1.0.1')
+    tx.addTag('Type', 'post')
+    if(topicValue) {
+      tx.addTag('Topic', topicValue);
+    }    
+    try {
+      let result = await window.arweaveWallet.dispatch(tx);
+      setPostValue("");
+      if (props.onPostMessage) {
+        props.onPostMessage(result.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsPosting(false);
   }
+
+  function onTopicChanged(e) {
+    let input = e.target.value;
+    let dashedTopic = getTopicString(input);
+    setTopicValue(dashedTopic);
+   }
 
   let isDisabled = postValue === "";
 
@@ -21,7 +47,7 @@ export const NewPost = (props) => {
             readOnly={true}
           />
           <div className="newPost-postRow">
-          {/* <div className="topic">
+          <div className="topic">
               # 
               <input
                 type="text" 
@@ -30,7 +56,7 @@ export const NewPost = (props) => {
                 value={topicValue}
                 disabled={true}
               />
-            </div> */}
+            </div>
             <div >
               <button 
                 className="submitButton"
@@ -52,7 +78,7 @@ export const NewPost = (props) => {
             placeholder="What do you have to say?" 
           />
           <div className="newPost-postRow">
-            {/* <div className="topic"
+            <div className="topic"
               style={{color: topicValue  && "rgb( 80, 162, 255)" }}
             >
               # 
@@ -63,7 +89,7 @@ export const NewPost = (props) => {
                 value={topicValue}
                 onChange={e => onTopicChanged(e)}
               />
-            </div> */}
+            </div>
             <div >
               <button 
                 className="submitButton"

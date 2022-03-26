@@ -1,3 +1,5 @@
+import Arweave from "arweave";
+export const arweave = Arweave.init({});
 
 export const isWellFormattedAddress = (input) => {
   const re = /^[a-zA-Z0-9_]{43}$/;
@@ -8,18 +10,72 @@ export const createPostInfo = (node) => {
   const ownerAddress = node.owner.address;
   const height = node.block ? node.block.height : -1;
   const timestamp = node.block ? parseInt(node.block.timestamp, 10) * 1000 : -1;
+  const topicTag = node.tags && node.tags.find((a) => a.name === 'Topic');
+  const topic = topicTag ? topicTag.value : null;
   const postInfo = {
     txid: node.id,
     owner: ownerAddress,
     height: height,
     length: node.data.size,
     timestamp: timestamp,
+    topic,
+    request: null
   }
-  return postInfo;
+
+  postInfo.request = arweave.api.get(`/${node.id}`, { timeout: 10000 })
+  .catch(() => { postInfo.error = "timeout loading data"});
+return postInfo;
 }
 
-export const buildQuery = () => {
-  const queryObject = {}
+export const buildQuery = ({count, address, topic} = {}) => {
+  count = Math.min(100, count || 100);
+  let ownersFilter = '';
+  if (address) {
+    ownersFilter = `owners: ["${address}"],`
+  }
+ 
+  let topicFilter = '';
+  if (topic) {
+    topicFilter = `{
+      name: "Topic",
+      values: ["${topic}"]
+    },`
+  }
+  const queryObject = { query: `{
+    transactions(first: ${count}, ${ownersFilter}
+      tags: [
+        {
+          name: "App-Name",
+          values: ["PublicSquare"]
+        },
+        {
+          name: "Content-Type",
+          values: ["text/plain"]
+        },
+        ${topicFilter}
+      ]
+    ) {
+      edges {
+        node {
+          id
+          owner {
+            address
+          }
+          data {
+            size
+          }
+          block {
+            height
+            timestamp
+          }
+          tags {
+            name,
+            value
+          }
+        }
+      }
+    }
+  }`}
   return queryObject;
 }
 
